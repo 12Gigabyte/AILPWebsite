@@ -1,24 +1,19 @@
 import { useState } from 'react';
-import Landing from './components/Landing';
-import Login from './components/Login'; // Your existing login card!
+import Landing from './pages/Landing';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
 
-function App() {
-  // We start on the 'landing' page by default
+
+export default function App() {
+  // STATE: Acts as a simple router. Starts on the 'landing' page.
   const [currentPage, setCurrentPage] = useState('landing');
 
+  // RENDER LOGIC: Decides which component to show based on the state
   return (
     <div>
-      {/* If current page is 'landing', show the Landing component */}
-      {currentPage === 'landing' && (
-        <Landing onNavigate={setCurrentPage} />
-      )}
-
-      {/* If current page is 'login', show the Login component */}
-      {currentPage === 'login' && (
-        <Login onNavigate={setCurrentPage} />
-      )}
+      {currentPage === 'landing' && <Landing onNavigate={setCurrentPage} />}
+      {currentPage === 'login' && <Login onNavigate={setCurrentPage} />}
+      {currentPage === 'dashboard' && <Dashboard onNavigate={setCurrentPage} />}
     </div>
   );
 }
-
-export default App;
