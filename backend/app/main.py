@@ -1,22 +1,21 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+# Import our router files
+from app.routers import dashboard
+from app.routers import auth # <--- ADD THIS LINE
+
 app = FastAPI()
 
 # --- The CORS Bridge ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows any frontend to connect (perfect for local team dev)
+    allow_origins=["*"],  
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all actions (GET, POST, etc.)
+    allow_methods=["*"],  
     allow_headers=["*"],
 )
 
-# --- A Test Route for the Dashboard ---
-@app.get("/api/dashboard")
-def get_dashboard_data():
-    return {
-        "title": "AILP Team Dashboard",
-        "status": "Backend is fully connected and operational!",
-        "active_users": 6
-    }
+# --- Plug in the Squad's Routes ---
+app.include_router(dashboard.router)
+app.include_router(auth.router) # <--- ADD THIS LINE
