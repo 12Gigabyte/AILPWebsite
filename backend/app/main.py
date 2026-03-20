@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Import our router files
 from app.routers import dashboard
-from app.routers import auth # <--- ADD THIS LINE
+from app.routers import auth
+from app.routers import courses 
 
 app = FastAPI()
 
@@ -18,4 +19,5 @@ app.add_middleware(
 
 # --- Plug in the Squad's Routes ---
 app.include_router(dashboard.router)
-app.include_router(auth.router) # <--- ADD THIS LINE
+app.include_router(auth.router)
+app.include_router(courses.router) 

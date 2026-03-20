@@ -1,11 +1,16 @@
 import React from 'react';
+import CoursePlanner from '../components/CoursePlanner';
 
 export default function Dashboard({ onNavigate }) {
 
     // HANDLER: Clears the session and sends the user back to the front door
     const handleLogout = () => {
         // Later, you'll clear secure tokens here. For now, just redirect.
-        onNavigate('landing');
+        // DESTROY THE KEYCARD
+        localStorage.removeItem('isAuthenticated');
+        localStorage.removeItem('userName');
+
+        onNavigate('landing')
     };
 
     return (
@@ -54,8 +59,9 @@ export default function Dashboard({ onNavigate }) {
 
                 {/* Placeholder cards to show the team where their components will go */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-64 flex items-center justify-center text-slate-400 border-dashed border-2">
-                        Squad A: Mount Course Planner Here
+                    {/* Replace the dashed placeholder div with this: */}
+                    <div className="col-span-1 md:col-span-2">
+                        <CoursePlanner />
                     </div>
                     <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-64 flex items-center justify-center text-slate-400 border-dashed border-2">
                         Squad B: Mount PDF Analyser Here

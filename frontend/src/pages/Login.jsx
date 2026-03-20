@@ -20,6 +20,10 @@ export default function Login({ onNavigate }) {
             const data = await response.json();
 
             if (response.ok) {
+                // NEW: Save a persistent keycard in the browser
+                localStorage.setItem('isAuthenticated', 'true');
+                localStorage.setItem('userName', data.user);
+
                 onNavigate('dashboard');
             } else {
                 setError(data.detail);
