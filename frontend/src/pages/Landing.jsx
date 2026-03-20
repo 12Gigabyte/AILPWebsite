@@ -1,4 +1,11 @@
+import { useState } from 'react';
+import Login from './Login'; // Import our new modal component
+
+
 export default function Landing({ onNavigate }) {
+    // Add this line right at the start of your component
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
     return (
         <div className="min-h-screen flex flex-col overflow-hidden px-[5%] font-sans text-slate-900 bg-[#fafafa] bg-[radial-gradient(circle_at_0%_0%,rgba(224,231,255,0.5)_0%,transparent_40%),radial-gradient(circle_at_100%_0%,rgba(253,232,243,0.5)_0%,transparent_40%)]">
 
@@ -8,8 +15,8 @@ export default function Landing({ onNavigate }) {
                     SynapseAI
                 </div>
                 <button
-                    className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-none px-6 py-2.5 rounded-lg text-[0.95rem] font-semibold cursor-pointer transition-opacity hover:opacity-90"
-                    onClick={() => onNavigate('login')}
+                    onClick={() => setIsLoginModalOpen(true)}
+                    className="px-6 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-full hover:bg-slate-50 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm cursor-pointer"
                 >
                     Log in
                 </button>
@@ -66,6 +73,14 @@ export default function Landing({ onNavigate }) {
                 </div>
 
             </section>
+
+            {/* RENDER THE MODAL IF THE STATE IS TRUE */}
+            {isLoginModalOpen && (
+                <Login
+                    onNavigate={onNavigate}
+                    onClose={() => setIsLoginModalOpen(false)}
+                />
+            )}
         </div>
     );
 }
