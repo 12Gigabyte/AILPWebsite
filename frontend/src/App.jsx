@@ -14,7 +14,6 @@ export default function App() {
   return (
     <div>
       {currentPage === 'landing' && <Landing onNavigate={setCurrentPage} />}
-      {currentPage === 'login' && <Login onNavigate={setCurrentPage} />}
       {currentPage === 'dashboard' && <Dashboard onNavigate={setCurrentPage} />}
     </div>
   );
