@@ -3,12 +3,14 @@ import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 
-
 export default function App() {
-  // STATE: Acts as a simple router. Starts on the 'landing' page.
-  const [currentPage, setCurrentPage] = useState('landing');
+  // STATE: Check localStorage before deciding which page to load first
+  const [currentPage, setCurrentPage] = useState(() => {
+    const isAuth = localStorage.getItem('isAuthenticated');
+    return isAuth === 'true' ? 'dashboard' : 'landing';
+  });
 
-  // RENDER LOGIC: Decides which component to show based on the state
+  // RENDER LOGIC
   return (
     <div>
       {currentPage === 'landing' && <Landing onNavigate={setCurrentPage} />}
