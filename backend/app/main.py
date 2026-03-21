@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers import dashboard
 from app.routers import auth
 from app.routers import courses 
+from app.routers import pdf
 
 app = FastAPI()
 
@@ -21,3 +22,4 @@ app.add_middleware(
 app.include_router(dashboard.router)
 app.include_router(auth.router)
 app.include_router(courses.router) 
+app.include_router(pdf.router)
