@@ -4,18 +4,17 @@ export default function PdfAnalyser() {
     const [file, setFile] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [result, setResult] = useState(null); // <-- NEW: To store Python's response
+    const [result, setResult] = useState(null);
     const fileInputRef = useRef(null);
-    const [flippedCards, setFlippedCards] = useState({}); // <-- ADD THIS LINE
+    const [flippedCards, setFlippedCards] = useState({});
+    const [quizAnswers, setQuizAnswers] = useState({}); 
+    const [showResults, setShowResults] = useState(false);
 
     const handleDragOver = (e) => {
         e.preventDefault();
         setIsDragging(true);
     };
 
-    const toggleCard = (index) => {
-        setFlippedCards(prev => ({ ...prev, [index]: !prev[index] }));
-    };
 
     const handleDragLeave = (e) => {
         e.preventDefault();
@@ -77,6 +76,13 @@ export default function PdfAnalyser() {
     const resetAnalyser = () => {
         setFile(null);
         setResult(null);
+        setFlippedCards({});
+        setQuizAnswers({}); // <-- ADD THIS
+        setShowResults(false); // <-- ADD THIS
+    };
+
+    const toggleCard = (index) => {
+        setFlippedCards(prev => ({ ...prev, [index]: !prev[index] }));
     };
 
     return (
@@ -162,18 +168,70 @@ export default function PdfAnalyser() {
                                     </div>
 
                                     {/* QUICK QUIZ PREVIEW */}
-                                    <div className="mt-2 pt-4 border-t border-slate-100">
-                                        <h5 className="font-bold text-slate-700 text-sm uppercase tracking-wider mb-3">Mini Quiz ({result.ai_analysis.quiz?.length} Questions)</h5>
-                                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                                            <p className="text-sm font-medium text-slate-800 mb-2">1. {result.ai_analysis.quiz?.[0]?.question}</p>
-                                            <ul className="text-sm text-slate-600 space-y-1 pl-2 mb-3">
-                                                {result.ai_analysis.quiz?.[0]?.options?.map((opt, i) => (
-                                                    <li key={i}>• {opt}</li>
-                                                ))}
-                                            </ul>
-                                            <div className="inline-block px-3 py-1 bg-white border border-slate-200 rounded-md text-xs font-semibold text-slate-500">
-                                                Hover for Answer: <span className="text-white hover:text-emerald-600 transition-colors bg-slate-200 hover:bg-transparent rounded px-1">{result.ai_analysis.quiz?.[0]?.correct_answer}</span>
-                                            </div>
+                                    {/* INTERACTIVE QUIZ ENGINE */}
+                                    <div className="mt-4 pt-6 border-t border-slate-100">
+                                        <h5 className="font-bold text-slate-700 text-sm uppercase tracking-wider mb-4 flex items-center gap-2">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-500"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                            Knowledge Check
+                                        </h5>
+
+                                        <div className="flex flex-col gap-6">
+                                            {result.ai_analysis.quiz?.map((q, qIndex) => (
+                                                <div key={qIndex} className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+                                                    <p className="font-bold text-slate-800 mb-3">{qIndex + 1}. {q.question}</p>
+                                                    <div className="flex flex-col gap-2">
+                                                        {q.options.map((opt, oIndex) => {
+                                                            const isSelected = quizAnswers[qIndex] === opt;
+                                                            const isCorrect = opt === q.correct_answer;
+
+                                                            // Determine styles based on whether they submitted the quiz yet
+                                                            let btnClass = "w-full text-left p-3 border rounded-lg text-sm transition-all ";
+                                                            if (showResults) {
+                                                                if (isCorrect) btnClass += "bg-emerald-100 border-emerald-400 text-emerald-900 font-semibold shadow-sm";
+                                                                else if (isSelected && !isCorrect) btnClass += "bg-red-50 border-red-300 text-red-800 strikethrough";
+                                                                else btnClass += "bg-white border-slate-200 text-slate-400 opacity-60";
+                                                            } else {
+                                                                btnClass += isSelected
+                                                                    ? "bg-indigo-100 border-indigo-400 text-indigo-900 font-semibold shadow-sm"
+                                                                    : "bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50/50 cursor-pointer";
+                                                            }
+
+                                                            return (
+                                                                <button
+                                                                    key={oIndex}
+                                                                    disabled={showResults}
+                                                                    onClick={() => setQuizAnswers(prev => ({ ...prev, [qIndex]: opt }))}
+                                                                    className={btnClass}
+                                                                >
+                                                                    {opt}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        {/* QUIZ CONTROLS & SCORE */}
+                                        <div className="mt-6">
+                                            {!showResults ? (
+                                                <button
+                                                    onClick={() => setShowResults(true)}
+                                                    disabled={Object.keys(quizAnswers).length !== result.ai_analysis.quiz?.length}
+                                                    className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-sm hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+                                                >
+                                                    {Object.keys(quizAnswers).length !== result.ai_analysis.quiz?.length
+                                                        ? "Answer all questions to submit"
+                                                        : "Submit Quiz"}
+                                                </button>
+                                            ) : (
+                                                <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-xl text-center">
+                                                    <h3 className="text-xl font-extrabold text-indigo-800">
+                                                        You scored {Object.keys(quizAnswers).filter(k => quizAnswers[k] === result.ai_analysis.quiz[k].correct_answer).length} out of {result.ai_analysis.quiz?.length}!
+                                                    </h3>
+                                                    <p className="text-indigo-600 text-sm font-medium mt-1">Review your answers above.</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </>
