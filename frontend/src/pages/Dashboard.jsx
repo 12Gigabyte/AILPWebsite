@@ -1,5 +1,6 @@
 import React from 'react';
 import CoursePlanner from '../components/CoursePlanner';
+import PdfAnalyser from '../components/PdfAnalyser';
 
 export default function Dashboard({ onNavigate }) {
 
@@ -63,8 +64,8 @@ export default function Dashboard({ onNavigate }) {
                     <div className="col-span-1 md:col-span-2">
                         <CoursePlanner />
                     </div>
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-64 flex items-center justify-center text-slate-400 border-dashed border-2">
-                        Squad B: Mount PDF Analyser Here
+                    <div className="col-span-1 md:col-span-1 bg-white border border-slate-200 rounded-xl p-5 shadow-sm h-[600px]">
+                        <PdfAnalyser />
                     </div>
                 </div>
             </main>
