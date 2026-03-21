@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-# Initialize the Gemini Flash model (super fast for text processing)
+# Initialize the Gemini 2.5 Flash model
 model = genai.GenerativeModel('gemini-2.5-flash')
 
 router = APIRouter(prefix="/api/pdf", tags=["PDF Analyser"])
