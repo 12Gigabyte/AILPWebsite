@@ -1,34 +1,39 @@
 import { useState, useRef, useEffect } from 'react';
 
 export default function PdfAnalyser() {
-    // File & Upload States
     const [file, setFile] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const fileInputRef = useRef(null);
 
-    // Multi-Document State Management
-    const [savedAnalyses, setSavedAnalyses] = useState(() => {
-        // Load synchronously the exact moment the component is created
-        const saved = localStorage.getItem('synapse_pdfs');
-        return saved ? JSON.parse(saved) : [];
-    });
+    // Cloud State Management
+    const [savedAnalyses, setSavedAnalyses] = useState([]);
     const [activeAnalysis, setActiveAnalysis] = useState(null);
 
-    // Active View States (Flashcards & Quiz)
+    // Grab the logged-in user!
+    const userName = localStorage.getItem('userName') || 'Student';
+
     const [flippedCards, setFlippedCards] = useState({});
     const [quizAnswers, setQuizAnswers] = useState({});
     const [showResults, setShowResults] = useState(false);
     const [isQuizActive, setIsQuizActive] = useState(false);
 
-    // (Note: The first useEffect was deleted entirely!)
-
-    // 2. Automatically save documents to memory whenever the list changes
+    // 1. Fetch from the Cloud Database when the component loads
     useEffect(() => {
-        localStorage.setItem('synapse_pdfs', JSON.stringify(savedAnalyses));
-    }, [savedAnalyses]);
+        const fetchLibrary = async () => {
+            try {
+                const response = await fetch(`http://localhost:8000/api/pdf/library/${userName}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setSavedAnalyses(data);
+                }
+            } catch (err) {
+                console.error("Could not connect to database");
+            }
+        };
+        fetchLibrary();
+    }, [userName]);
 
-    // --- Drag & Drop Handlers ---
     const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
     const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
 
@@ -51,13 +56,13 @@ export default function PdfAnalyser() {
         }
     };
 
-    // --- The Cloud Connection ---
     const handleAnalyze = async () => {
         setIsAnalyzing(true);
         const formData = new FormData();
         formData.append('file', file);
 
         try {
+            // A. Send the PDF to Gemini to extract the data
             const response = await fetch('http://localhost:8000/api/pdf/upload', {
                 method: 'POST',
                 body: formData,
@@ -68,12 +73,25 @@ export default function PdfAnalyser() {
             if (response.ok) {
                 const newAnalysis = {
                     ...data,
-                    id: Date.now().toString(),
                     createdAt: new Date().toLocaleDateString()
                 };
-                setSavedAnalyses(prev => [newAnalysis, ...prev]);
-                openAnalysis(newAnalysis);
-                setFile(null);
+
+                // B. Immediately save the generated flashcards to the MongoDB Cloud!
+                const saveRes = await fetch('http://localhost:8000/api/pdf/library', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: userName,
+                        pdf_data: newAnalysis
+                    })
+                });
+
+                if (saveRes.ok) {
+                    const savedData = await saveRes.json();
+                    setSavedAnalyses(prev => [savedData, ...prev]);
+                    openAnalysis(savedData);
+                    setFile(null);
+                }
             } else {
                 alert(`Error: ${data.detail}`);
             }
@@ -84,7 +102,6 @@ export default function PdfAnalyser() {
         }
     };
 
-    // Helper to open a document and reset its interactive states
     const openAnalysis = (analysis) => {
         setActiveAnalysis(analysis);
         setFlippedCards({});
@@ -93,10 +110,19 @@ export default function PdfAnalyser() {
         setIsQuizActive(false);
     };
 
-    // Helper to delete a document from the library
-    const deleteAnalysis = (e, id) => {
+    const deleteAnalysis = async (e, id) => {
         e.stopPropagation();
-        setSavedAnalyses(prev => prev.filter(a => a.id !== id));
+
+        // 1. Delete from MongoDB Cloud
+        try {
+            await fetch(`http://localhost:8000/api/pdf/library/${id}`, {
+                method: 'DELETE'
+            });
+            // 2. Remove from the React screen
+            setSavedAnalyses(prev => prev.filter(a => a.id !== id));
+        } catch (err) {
+            console.error("Failed to delete from cloud");
+        }
     };
 
     const toggleCard = (index) => {
@@ -104,11 +130,9 @@ export default function PdfAnalyser() {
     };
 
     return (
-        <div className="flex flex-col h-full animate-fade-in">
+        <div className="flex flex-col min-h-full animate-fade-in">
 
-            {/* =========================================
-                VIEW 1: THE DOCUMENT LIBRARY
-                ========================================= */}
+            {/* VIEW 1: THE DOCUMENT LIBRARY */}
             {!activeAnalysis ? (
                 <div className="flex flex-col h-full">
                     {/* UPLOAD ZONE */}
@@ -141,7 +165,7 @@ export default function PdfAnalyser() {
                                             Remove
                                         </button>
                                         <button onClick={(e) => { e.stopPropagation(); handleAnalyze(); }} disabled={isAnalyzing} className="flex-1 py-3 px-4 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-sm disabled:bg-indigo-400 flex justify-center items-center cursor-pointer">
-                                            {isAnalyzing ? <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> : 'Extract Data'}
+                                            {isAnalyzing ? <svg className="animate-spin h-5 w-5 text-white" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> : 'Extract Data'}
                                         </button>
                                     </div>
                                 </div>
@@ -193,9 +217,7 @@ export default function PdfAnalyser() {
                 </div>
             ) : (
 
-                /* =========================================
-               VIEW 2: ACTIVE DOCUMENT (Flashcards & Quiz)
-               ========================================= */
+                /* VIEW 2: ACTIVE DOCUMENT (Flashcards & Quiz) */
                 <div className="flex flex-col animate-fade-in w-full pb-12">
 
                     {!isQuizActive ? (
@@ -211,10 +233,9 @@ export default function PdfAnalyser() {
                                 </button>
                             </div>
 
-                            {/* CENTERED CONTENT WRAPPER */}
-                            <div className="max-w-4xl mx-auto w-full">
+                            <div className="max-w-4xl mx-auto w-full flex flex-col gap-8">
                                 {/* DOCUMENT HEADER */}
-                                <div className="flex items-center gap-4 mb-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                <div className="flex items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                                     <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 shrink-0 shadow-inner">
                                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                                     </div>
@@ -285,15 +306,14 @@ export default function PdfAnalyser() {
                             <div className="w-full mb-6">
                                 <button
                                     onClick={() => setIsQuizActive(false)}
-                                    className="flex items-center gap-2 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 font-bold transition-all cursor-pointer bg-white px-5 py-2 rounded-full shadow-sm border border-slate-200 w-max hover:-translate-x-1"
+                                    className="flex items-center gap-2 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 font-bold transition-all cursor-pointer bg-white px-5 py-2 rounded-full shadow-sm border border-slate-200 w-max hover:-translate-x-1"
                                 >
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                                     Back to Flashcards
                                 </button>
                             </div>
 
-                            {/* CENTERED QUIZ CONTAINER */}
-                            <div className="w-full max-w-3xl mx-auto bg-white rounded-3xl p-8 border border-slate-200 shadow-sm">
+                            <div className="max-w-3xl mx-auto w-full bg-white rounded-3xl p-8 border border-slate-200 shadow-sm">
                                 <div className="text-center mb-8 border-b border-slate-100 pb-6">
                                     <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
                                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>

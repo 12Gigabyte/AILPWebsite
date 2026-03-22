@@ -4,25 +4,32 @@ export default function CoursePlanner() {
     const [topic, setTopic] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
 
-    // NEW: Multi-Course State Management
-    const [savedCourses, setSavedCourses] = useState(() => {
-        // Load synchronously the exact moment the component is created
-        const saved = localStorage.getItem('synapse_courses');
-        return saved ? JSON.parse(saved) : [];
-    });
+    // Cloud State Management
+    const [savedCourses, setSavedCourses] = useState([]);
     const [activeCourse, setActiveCourse] = useState(null);
 
-    // Quiz Tracking States
+    // We grab the logged-in user to fetch their specific data!
+    const userName = localStorage.getItem('userName') || 'Student';
+
     const [quizAnswers, setQuizAnswers] = useState({});
     const [showResults, setShowResults] = useState(false);
     const [isQuizActive, setIsQuizActive] = useState(false);
 
-    // (Note: The first useEffect was deleted entirely!)
-
-    // 2. Automatically save courses to memory whenever the list changes
+    // 1. Fetch from the Cloud Database when the component loads
     useEffect(() => {
-        localStorage.setItem('synapse_courses', JSON.stringify(savedCourses));
-    }, [savedCourses]);
+        const fetchLibrary = async () => {
+            try {
+                const response = await fetch(`http://localhost:8000/api/course/library/${userName}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    setSavedCourses(data);
+                }
+            } catch (err) {
+                console.error("Could not connect to database");
+            }
+        };
+        fetchLibrary();
+    }, [userName]);
 
     const handleGenerateCourse = async (e) => {
         e.preventDefault();
@@ -31,6 +38,7 @@ export default function CoursePlanner() {
         setIsGenerating(true);
 
         try {
+            // A. Ask AI to design the curriculum
             const response = await fetch('http://localhost:8000/api/course/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -40,29 +48,37 @@ export default function CoursePlanner() {
             const data = await response.json();
 
             if (response.ok) {
-                // Add a unique ID and date to the new course
                 const newCourse = {
                     ...data,
-                    id: Date.now().toString(),
                     createdAt: new Date().toLocaleDateString()
                 };
 
-                // Add to the top of our library list
-                setSavedCourses(prev => [newCourse, ...prev]);
-                // Automatically open it
-                openCourse(newCourse);
-                setTopic(''); // Clear the search bar
+                // B. Immediately save the finished curriculum to the MongoDB Cloud!
+                const saveRes = await fetch('http://localhost:8000/api/course/library', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: userName,
+                        course_data: newCourse
+                    })
+                });
+
+                if (saveRes.ok) {
+                    const savedData = await saveRes.json();
+                    setSavedCourses(prev => [savedData, ...prev]);
+                    openCourse(savedData);
+                    setTopic('');
+                }
             } else {
                 alert(`Error: ${data.detail}`);
             }
         } catch (err) {
-            alert("Failed to connect to the server. Is Python running?");
+            alert("Failed to connect to the server.");
         } finally {
             setIsGenerating(false);
         }
     };
 
-    // Helper to open a course and reset its quiz states
     const openCourse = (course) => {
         setActiveCourse(course);
         setQuizAnswers({});
@@ -70,18 +86,24 @@ export default function CoursePlanner() {
         setIsQuizActive(false);
     };
 
-    // Helper to delete a course from the library
-    const deleteCourse = (e, courseId) => {
-        e.stopPropagation(); // Prevent clicking the card behind the button
-        setSavedCourses(prev => prev.filter(c => c.id !== courseId));
+    const deleteCourse = async (e, courseId) => {
+        e.stopPropagation();
+
+        // 1. Delete from MongoDB Cloud
+        try {
+            await fetch(`http://localhost:8000/api/course/library/${courseId}`, {
+                method: 'DELETE'
+            });
+            // 2. Remove from the React screen
+            setSavedCourses(prev => prev.filter(c => c.id !== courseId));
+        } catch (err) {
+            console.error("Failed to delete from cloud");
+        }
     };
 
     return (
         <div className="flex flex-col h-full animate-fade-in">
 
-            {/* =========================================
-                VIEW 1: THE COURSE LIBRARY (List View)
-                ========================================= */}
             {!activeCourse ? (
                 <div className="flex flex-col h-full">
                     {/* HEADER & SEARCH BAR */}
@@ -109,7 +131,7 @@ export default function CoursePlanner() {
                                 className="py-4 px-8 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 transition-colors shadow-sm disabled:bg-indigo-400 flex items-center justify-center min-w-[160px] cursor-pointer text-lg"
                             >
                                 {isGenerating ? (
-                                    <svg className="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                    <svg className="animate-spin h-6 w-6 text-white" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                                 ) : 'Create Course'}
                             </button>
                         </form>
@@ -137,32 +159,19 @@ export default function CoursePlanner() {
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-8">
                                 {savedCourses.map(course => (
-                                    <div
-                                        key={course.id}
-                                        onClick={() => openCourse(course)}
-                                        className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer group flex flex-col h-64 relative overflow-hidden"
-                                    >
+                                    <div key={course.id} onClick={() => openCourse(course)} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer group flex flex-col h-64 relative overflow-hidden">
                                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-emerald-400 transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300"></div>
-
                                         <div className="flex justify-between items-start mb-4">
                                             <span className="bg-indigo-50 text-indigo-600 text-xs font-bold px-3 py-1 rounded-full">{course.modules?.length} Modules</span>
-                                            <button
-                                                onClick={(e) => deleteCourse(e, course.id)}
-                                                className="text-slate-300 hover:text-red-500 transition-colors p-1"
-                                                title="Delete Course"
-                                            >
+                                            <button onClick={(e) => deleteCourse(e, course.id)} className="text-slate-300 hover:text-red-500 transition-colors p-1" title="Delete Course">
                                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                                             </button>
                                         </div>
-
                                         <h4 className="text-xl font-bold text-slate-800 mb-2 line-clamp-2 group-hover:text-indigo-700 transition-colors">{course.title}</h4>
                                         <p className="text-slate-500 text-sm line-clamp-3 flex-1">{course.description}</p>
-
                                         <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400 font-medium">
                                             <span>Created {course.createdAt}</span>
-                                            <span className="flex items-center gap-1 text-indigo-500 group-hover:translate-x-1 transition-transform">
-                                                Resume <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-                                            </span>
+                                            <span className="flex items-center gap-1 text-indigo-500 group-hover:translate-x-1 transition-transform">Resume <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg></span>
                                         </div>
                                     </div>
                                 ))}
@@ -172,12 +181,7 @@ export default function CoursePlanner() {
                 </div>
             ) : (
 
-
-                /* =========================================
-                VIEW 2: ACTIVE COURSE (Timeline & Quiz)
-                ========================================= */
                 <div className="flex flex-col h-full animate-fade-in w-full pb-12">
-
                     {!isQuizActive ? (
                         <>
                             {/* FAR LEFT BACK BUTTON */}
@@ -187,30 +191,23 @@ export default function CoursePlanner() {
                                     className="flex items-center gap-2 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 font-bold transition-all cursor-pointer bg-white px-5 py-2 rounded-full shadow-sm border border-slate-200 w-max hover:-translate-x-1"
                                 >
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-                                    Back to Library
+                                    Library
                                 </button>
                             </div>
 
-                            {/* CENTERED CONTENT WRAPPER */}
                             <div className="max-w-4xl mx-auto w-full">
-                                {/* COURSE HEADER */}
                                 <div className="mb-12 text-center bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
                                     <h3 className="text-3xl font-extrabold text-indigo-700 mb-3">{activeCourse.title}</h3>
                                     <p className="text-slate-600 text-lg">{activeCourse.description}</p>
                                 </div>
 
-                                {/* TIMELINE */}
                                 <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-indigo-100">
                                     {activeCourse.modules?.map((mod, idx) => (
                                         <div key={idx} className="relative flex items-start gap-6 group">
-                                            <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-slate-50 bg-indigo-500 text-white font-bold text-sm shadow shrink-0 relative z-10 mt-1">
-                                                {idx + 1}
-                                            </div>
+                                            <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-slate-50 bg-indigo-500 text-white font-bold text-sm shadow shrink-0 relative z-10 mt-1">{idx + 1}</div>
                                             <div className="flex-1 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
                                                 <h4 className="font-bold text-slate-800 text-lg mb-2">{mod.title}</h4>
                                                 <p className="text-slate-600 text-sm leading-relaxed mb-4">{mod.description}</p>
-
-                                                {/* RESOURCES */}
                                                 {mod.resources && mod.resources.length > 0 && (
                                                     <div className="mt-4 pt-4 border-t border-slate-100">
                                                         <h5 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-3">Recommended Study Material</h5>
@@ -234,13 +231,9 @@ export default function CoursePlanner() {
                                     ))}
                                 </div>
 
-                                {/* TAKE QUIZ BUTTON */}
                                 {activeCourse.quiz && activeCourse.quiz.length > 0 && (
                                     <div className="mt-16 flex justify-center border-t border-slate-200 pt-10">
-                                        <button
-                                            onClick={() => setIsQuizActive(true)}
-                                            className="group py-4 px-8 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold rounded-2xl shadow-sm hover:shadow-md transition-all text-lg flex items-center gap-3 cursor-pointer hover:-translate-y-1"
-                                        >
+                                        <button onClick={() => setIsQuizActive(true)} className="group py-4 px-8 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold rounded-2xl shadow-sm hover:shadow-md transition-all text-lg flex items-center gap-3 cursor-pointer hover:-translate-y-1">
                                             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>
                                             Take Mastery Quiz
                                         </button>
@@ -250,20 +243,14 @@ export default function CoursePlanner() {
                         </>
                     ) : (
 
-                        /* QUIZ ISOLATION VIEW */
                         <>
-                            {/* FAR LEFT BACK BUTTON */}
                             <div className="w-full mb-6">
-                                <button
-                                    onClick={() => setIsQuizActive(false)}
-                                    className="flex items-center gap-2 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 font-bold transition-all cursor-pointer bg-white px-5 py-2 rounded-full shadow-sm border border-slate-200 w-max hover:-translate-x-1"
-                                >
+                                <button onClick={() => setIsQuizActive(false)} className="flex items-center gap-2 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 font-bold transition-all cursor-pointer bg-white px-5 py-2 rounded-full shadow-sm border border-slate-200 w-max hover:-translate-x-1">
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
                                     Back to Curriculum
                                 </button>
                             </div>
 
-                            {/* CENTERED QUIZ CONTAINER */}
                             <div className="w-full max-w-3xl mx-auto bg-white rounded-3xl p-8 border border-slate-200 shadow-sm">
                                 <div className="text-center mb-8 border-b border-slate-100 pb-6">
                                     <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
@@ -288,9 +275,7 @@ export default function CoursePlanner() {
                                                         else if (isSelected && !isCorrect) btnClass += "bg-red-50 border-red-300 text-red-800 line-through";
                                                         else btnClass += "bg-white border-slate-200 text-slate-400 opacity-60";
                                                     } else {
-                                                        btnClass += isSelected
-                                                            ? "bg-indigo-100 border-indigo-400 text-indigo-900 font-bold shadow-sm"
-                                                            : "bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50/50 cursor-pointer";
+                                                        btnClass += isSelected ? "bg-indigo-100 border-indigo-400 text-indigo-900 font-bold shadow-sm" : "bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50/50 cursor-pointer";
                                                     }
 
                                                     return (
@@ -306,14 +291,8 @@ export default function CoursePlanner() {
 
                                 <div className="mt-8">
                                     {!showResults ? (
-                                        <button
-                                            onClick={() => setShowResults(true)}
-                                            disabled={Object.keys(quizAnswers).length !== activeCourse.quiz?.length}
-                                            className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl shadow-sm hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors text-lg cursor-pointer"
-                                        >
-                                            {Object.keys(quizAnswers).length !== activeCourse.quiz?.length
-                                                ? "Answer all questions to grade"
-                                                : "Grade My Quiz"}
+                                        <button onClick={() => setShowResults(true)} disabled={Object.keys(quizAnswers).length !== activeCourse.quiz?.length} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl shadow-sm hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors text-lg cursor-pointer">
+                                            {Object.keys(quizAnswers).length !== activeCourse.quiz?.length ? "Answer all questions to grade" : "Grade My Quiz"}
                                         </button>
                                     ) : (
                                         <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-2xl text-center animate-fade-in shadow-sm">

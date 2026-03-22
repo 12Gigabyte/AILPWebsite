@@ -3,53 +3,62 @@ import CoursePlanner from '../components/CoursePlanner';
 import PdfAnalyser from '../components/PdfAnalyser';
 
 export default function Dashboard({ onNavigate }) {
-    const [userName, setUserName] = useState('');
+    // We immediately grab the username from memory when the component loads
+    const [userName, setUserName] = useState(localStorage.getItem('userName') || 'Student');
     const [activeTab, setActiveTab] = useState('overview');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-    // NEW: Dashboard Stats State
     const [dashboardStats, setDashboardStats] = useState({ courses: 0, flashcards: 0, streak: 1 });
 
-    // NEW: Calculate stats every time the tab changes
+    // NEW: Fetch stats securely from the Cloud using the user's ID!
     useEffect(() => {
-        if (activeTab === 'overview') {
-            // 1. Count generated courses
-            const savedCourses = JSON.parse(localStorage.getItem('synapse_courses') || '[]');
+        const fetchDashboardStats = async () => {
+            if (activeTab === 'overview' && userName) {
+                try {
+                    // 1. Ask the cloud for this specific user's courses
+                    const coursesRes = await fetch(`http://localhost:8000/api/course/library/${userName}`);
+                    const savedCourses = coursesRes.ok ? await coursesRes.json() : [];
 
-            // 2. Count total flashcards across all saved PDFs
-            const savedPdfs = JSON.parse(localStorage.getItem('synapse_pdfs') || '[]');
-            let totalCards = 0;
-            savedPdfs.forEach(pdf => {
-                if (pdf.ai_analysis && pdf.ai_analysis.flashcards) {
-                    totalCards += pdf.ai_analysis.flashcards.length;
+                    // 2. Ask the cloud for this specific user's PDFs
+                    const pdfsRes = await fetch(`http://localhost:8000/api/pdf/library/${userName}`);
+                    const savedPdfs = pdfsRes.ok ? await pdfsRes.json() : [];
+
+                    // 3. Count up all the flashcards inside those PDFs
+                    let totalCards = 0;
+                    savedPdfs.forEach(pdf => {
+                        if (pdf.ai_analysis && pdf.ai_analysis.flashcards) {
+                            totalCards += pdf.ai_analysis.flashcards.length;
+                        }
+                    });
+
+                    // Grab their real streak from memory (default to 1 if missing)
+                    const realStreak = parseInt(localStorage.getItem('userStreak')) || 1;
+
+                    // 4. Update the screen
+                    setDashboardStats({
+                        courses: savedCourses.length,
+                        flashcards: totalCards,
+                        streak: realStreak // THE FAKE '3' IS GONE!
+                    });
+                } catch (err) {
+                    console.error("Failed to fetch stats from cloud", err);
                 }
-            });
+            }
+        };
 
-            // 3. Set the stats (We'll hardcode streak to 3 for now until we build a login tracker!)
-            setDashboardStats({
-                courses: savedCourses.length,
-                flashcards: totalCards,
-                streak: 3
-            });
-        }
-    }, [activeTab]);
-
-    useEffect(() => {
-        const storedName = localStorage.getItem('userName');
-        if (storedName) {
-            setUserName(storedName);
-        }
-    }, []);
+        fetchDashboardStats();
+    }, [activeTab, userName]); // This re-runs anytime the tab or user changes
 
     const handleLogout = () => {
         localStorage.removeItem('isAuthenticated');
         localStorage.removeItem('userName');
+        localStorage.removeItem('userStreak'); 
         onNavigate('landing');
     };
 
     const OverviewContent = () => (
         <div className="flex flex-col gap-8 animate-fade-in w-full">
-            {/* Welcome Banner - Removed Emoji */}
+            {/* Welcome Banner */}
             <div className="bg-gradient-to-r from-indigo-500 to-blue-600 rounded-2xl p-8 text-white shadow-lg">
                 <h2 className="text-3xl font-bold mb-2">Welcome back, {userName.split(' ')[0] || 'Student'}!</h2>
                 <p className="text-indigo-100">You have no upcoming deadlines today. Great time to review some flashcards!</p>
@@ -62,7 +71,6 @@ export default function Dashboard({ onNavigate }) {
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                     </div>
                     <div>
-                        {/* DYNAMIC VARIABLE HERE */}
                         <p className="text-3xl font-bold text-slate-800">{dashboardStats.courses}</p>
                         <p className="text-sm text-slate-500 font-medium">Active Courses</p>
                     </div>
@@ -72,7 +80,6 @@ export default function Dashboard({ onNavigate }) {
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line></svg>
                     </div>
                     <div>
-                        {/* DYNAMIC VARIABLE HERE */}
                         <p className="text-3xl font-bold text-slate-800">{dashboardStats.flashcards}</p>
                         <p className="text-sm text-slate-500 font-medium">Flashcards Generated</p>
                     </div>
@@ -82,7 +89,6 @@ export default function Dashboard({ onNavigate }) {
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
                     </div>
                     <div>
-                        {/* DYNAMIC VARIABLE HERE */}
                         <p className="text-3xl font-bold text-slate-800">{dashboardStats.streak}</p>
                         <p className="text-sm text-slate-500 font-medium">Day Streak</p>
                     </div>
@@ -126,39 +132,34 @@ export default function Dashboard({ onNavigate }) {
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col overflow-hidden">
 
-            {/* 1. GLOBAL FIXED HEADER - Spans the entire top of the screen */}
+            {/* GLOBAL FIXED HEADER */}
             <header className="h-16 w-full bg-white border-b border-slate-200 flex items-center justify-between px-6 fixed top-0 z-30">
                 <div className="flex items-center gap-4">
-                    {/* Dynamic Toggle Button */}
                     <button
                         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                         className="p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-indigo-600 transition-colors cursor-pointer shrink-0"
                     >
                         {isSidebarOpen ? (
-                            /* Collapse Arrow (Shows when sidebar is open) */
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
                         ) : (
-                            /* Hamburger Menu (Shows when sidebar is closed) */
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
                         )}
                     </button>
-                    {/* Fixed Logo */}
                     <h1 className="text-2xl font-extrabold text-indigo-600 tracking-tight">SynapseAI</h1>
                 </div>
 
-                {/* User Profile */}
                 <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-slate-700">{userName || 'Student'}</span>
+                    <span className="text-sm font-semibold text-slate-700">{userName}</span>
                     <div className="w-9 h-9 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-sm shadow-sm">
                         {userName ? userName.charAt(0).toUpperCase() : 'S'}
                     </div>
                 </div>
             </header>
 
-            {/* 2. BODY CONTAINER - Sits below the fixed header (pt-16) */}
+            {/* BODY CONTAINER */}
             <div className="flex flex-1 pt-16 h-screen w-full">
 
-                {/* LEFT SIDEBAR - Sits below header, slides in and out */}
+                {/* LEFT SIDEBAR */}
                 <aside className={`bg-white border-r border-slate-200 flex flex-col fixed top-16 h-[calc(100vh-4rem)] z-20 transition-transform duration-300 ease-in-out w-72 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                     <nav className="flex-1 py-6 px-6 flex flex-col gap-3 overflow-y-auto">
                         <button onClick={() => setActiveTab('overview')} className={`w-full text-left px-5 py-3 rounded-xl font-semibold text-sm transition-colors cursor-pointer ${activeTab === 'overview' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>Overview</button>
@@ -173,12 +174,9 @@ export default function Dashboard({ onNavigate }) {
 
                 {/* MAIN CONTENT AREA */}
                 <main className={`flex-1 flex flex-col h-full transition-all duration-300 ease-in-out ${isSidebarOpen ? 'ml-72' : 'ml-0'}`}>
-
-                    {/* DYNAMIC SCROLLABLE CONTENT */}
                     <div className="flex-1 overflow-y-auto p-8 w-full">
                         <div className="max-w-7xl mx-auto h-full w-full">
 
-                            {/* We now render ALL tabs, but use Tailwind's 'hidden' class to hide the inactive ones! */}
                             <div className={activeTab === 'overview' ? 'block' : 'hidden'}>
                                 <OverviewContent />
                             </div>
@@ -194,8 +192,7 @@ export default function Dashboard({ onNavigate }) {
                         </div>
                     </div>
                 </main>
-
-            </div> 
+            </div>
         </div>
     );
 }
