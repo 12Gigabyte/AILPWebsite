@@ -6,6 +6,7 @@ from app.routers import dashboard
 from app.routers import auth
 from app.routers import courses 
 from app.routers import pdf
+from app.routers import explorer 
 
 app = FastAPI()
 
@@ -23,3 +24,4 @@ app.include_router(dashboard.router)
 app.include_router(auth.router)
 app.include_router(courses.router) 
 app.include_router(pdf.router)
+app.include_router(explorer.router)

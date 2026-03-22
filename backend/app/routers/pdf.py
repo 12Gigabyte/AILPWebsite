@@ -51,7 +51,7 @@ async def upload_pdf(file: UploadFile = File(...)):
             ]
         }}
         
-        Generate exactly 5 flashcards and 3 quiz questions.
+       Generate exactly 5 to 10 flashcards and 10 to 15 quiz questions.
         DO NOT wrap the JSON in markdown code blocks like ```json.
         Return ONLY the raw JSON object.
         
