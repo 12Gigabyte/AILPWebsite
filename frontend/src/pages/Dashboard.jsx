@@ -7,6 +7,33 @@ export default function Dashboard({ onNavigate }) {
     const [activeTab, setActiveTab] = useState('overview');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+    // NEW: Dashboard Stats State
+    const [dashboardStats, setDashboardStats] = useState({ courses: 0, flashcards: 0, streak: 1 });
+
+    // NEW: Calculate stats every time the tab changes
+    useEffect(() => {
+        if (activeTab === 'overview') {
+            // 1. Count generated courses
+            const savedCourses = JSON.parse(localStorage.getItem('synapse_courses') || '[]');
+
+            // 2. Count total flashcards across all saved PDFs
+            const savedPdfs = JSON.parse(localStorage.getItem('synapse_pdfs') || '[]');
+            let totalCards = 0;
+            savedPdfs.forEach(pdf => {
+                if (pdf.ai_analysis && pdf.ai_analysis.flashcards) {
+                    totalCards += pdf.ai_analysis.flashcards.length;
+                }
+            });
+
+            // 3. Set the stats (We'll hardcode streak to 3 for now until we build a login tracker!)
+            setDashboardStats({
+                courses: savedCourses.length,
+                flashcards: totalCards,
+                streak: 3
+            });
+        }
+    }, [activeTab]);
+
     useEffect(() => {
         const storedName = localStorage.getItem('userName');
         if (storedName) {
@@ -35,7 +62,8 @@ export default function Dashboard({ onNavigate }) {
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
                     </div>
                     <div>
-                        <p className="text-3xl font-bold text-slate-800">0</p>
+                        {/* DYNAMIC VARIABLE HERE */}
+                        <p className="text-3xl font-bold text-slate-800">{dashboardStats.courses}</p>
                         <p className="text-sm text-slate-500 font-medium">Active Courses</p>
                     </div>
                 </div>
@@ -44,8 +72,9 @@ export default function Dashboard({ onNavigate }) {
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line></svg>
                     </div>
                     <div>
-                        <p className="text-3xl font-bold text-slate-800">0</p>
-                        <p className="text-sm text-slate-500 font-medium">Flashcards Mastered</p>
+                        {/* DYNAMIC VARIABLE HERE */}
+                        <p className="text-3xl font-bold text-slate-800">{dashboardStats.flashcards}</p>
+                        <p className="text-sm text-slate-500 font-medium">Flashcards Generated</p>
                     </div>
                 </div>
                 <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex items-center gap-5">
@@ -53,7 +82,8 @@ export default function Dashboard({ onNavigate }) {
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
                     </div>
                     <div>
-                        <p className="text-3xl font-bold text-slate-800">0</p>
+                        {/* DYNAMIC VARIABLE HERE */}
+                        <p className="text-3xl font-bold text-slate-800">{dashboardStats.streak}</p>
                         <p className="text-sm text-slate-500 font-medium">Day Streak</p>
                     </div>
                 </div>
@@ -144,27 +174,28 @@ export default function Dashboard({ onNavigate }) {
                 {/* MAIN CONTENT AREA */}
                 <main className={`flex-1 flex flex-col h-full transition-all duration-300 ease-in-out ${isSidebarOpen ? 'ml-72' : 'ml-0'}`}>
 
-                    {/* DYNAMIC SCROLLABLE CONTENT (Notice the redundant header is GONE!) */}
-                    <div className="flex-1 overflow-y-auto p-8">
-                        <div className="w-full h-full">
-                            {activeTab === 'overview' && <OverviewContent />}
+                    {/* DYNAMIC SCROLLABLE CONTENT */}
+                    <div className="flex-1 overflow-y-auto p-8 w-full">
+                        <div className="max-w-7xl mx-auto h-full w-full">
 
-                            {activeTab === 'planner' && (
-                                <div className="animate-fade-in bg-white border border-slate-200 rounded-2xl p-8 shadow-sm min-h-[calc(100vh-8rem)]">
-                                    <CoursePlanner />
-                                </div>
-                            )}
+                            {/* We now render ALL tabs, but use Tailwind's 'hidden' class to hide the inactive ones! */}
+                            <div className={activeTab === 'overview' ? 'block' : 'hidden'}>
+                                <OverviewContent />
+                            </div>
 
-                            {activeTab === 'analyser' && (
-                                <div className="animate-fade-in bg-white border border-slate-200 rounded-2xl p-8 shadow-sm min-h-[calc(100vh-8rem)]">
-                                    <PdfAnalyser />
-                                </div>
-                            )}
+                            <div className={activeTab === 'planner' ? 'block animate-fade-in bg-white border border-slate-200 rounded-2xl p-8 shadow-sm min-h-[calc(100vh-8rem)]' : 'hidden'}>
+                                <CoursePlanner />
+                            </div>
+
+                            <div className={activeTab === 'analyser' ? 'block animate-fade-in bg-white border border-slate-200 rounded-2xl p-8 shadow-sm min-h-[calc(100vh-8rem)]' : 'hidden'}>
+                                <PdfAnalyser />
+                            </div>
+
                         </div>
                     </div>
                 </main>
 
-            </div> {/* <-- Here is the missing closing tag! */}
+            </div> 
         </div>
     );
 }
