@@ -34,7 +34,7 @@ You should usually have two terminals open at once to run both sides of the app.
 | Purpose | Command | Location |
 | :--- | :--- | :--- |
 | **Start Frontend** | `npm run dev` | `/frontend` |
-| **Start Backend** | `python -m uvicorn app.main:app --reload` | `/backend` |
+| **Start Backend** | `py -m uvicorn app.main:app --reload` | `/backend` |
 
 ---
 
