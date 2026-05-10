@@ -140,14 +140,14 @@ async def login_user(request: LoginRequest):
     )
 
     return {
-    "message": "THIS IS THE NEW BACKEND",
-    "user": {
-        "name": "TEST USER",
-        "email": "test@test.com",
-        "institution": "TEST COLLEGE",
-        "dob": "2000-01-01",
-        "age": 25,
-        "streak": 999
+        "message": "Login successful",
+        "user": {
+            "name": user["name"],
+            "email": user["email"],
+            "institution": user["institution"],
+            "dob": user["dob"],
+            "age": age,
+            "streak": current_streak
+        }
     }
-}
     

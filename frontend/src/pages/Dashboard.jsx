@@ -4,13 +4,32 @@ import PdfAnalyser from '../components/PdfAnalyser';
 import Profile from './Profile';
 
 export default function Dashboard({ onNavigate }) {
-    // We immediately grab the username from memory when the component loads
-    const user = JSON.parse(localStorage.getItem('user'));
-    const [userName, setUserName] = useState(user?.name || 'Student');
+
+    // 🛡️ Bulletproof Local Storage Parsing
+    let safeUserName = 'Student';
+    try {
+        const stored = localStorage.getItem('user');
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            // Handle cases where the backend sends an object instead of a string
+            if (typeof parsed.name === 'string') {
+                safeUserName = parsed.name;
+            } else if (typeof parsed.name === 'object' && parsed.name?.name) {
+                safeUserName = parsed.name.name;
+            } else if (typeof parsed.user === 'string') {
+                safeUserName = parsed.user;
+            }
+        }
+    } catch (e) {
+        console.error("Local storage user data is corrupted.", e);
+    }
+
+    const [userName, setUserName] = useState(safeUserName);
     const [activeTab, setActiveTab] = useState('overview');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
     const [dashboardStats, setDashboardStats] = useState({ courses: 0, flashcards: 0, streak: 1 });
+
+    // ... (Keep the rest of your useEffect and code exactly the same)
 
     // NEW: Fetch stats securely from the Cloud using the user's ID!
     useEffect(() => {
@@ -162,14 +181,17 @@ export default function Dashboard({ onNavigate }) {
 
                 {/* LEFT SIDEBAR */}
                 <aside className={`bg-white border-r border-slate-200 flex flex-col fixed top-16 h-[calc(100vh-4rem)] z-20 transition-transform duration-300 ease-in-out w-72 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+
+                    {/* Main Navigation Tabs */}
                     <nav className="flex-1 py-6 px-6 flex flex-col gap-3 overflow-y-auto">
                         <button onClick={() => setActiveTab('overview')} className={`w-full text-left px-5 py-3 rounded-xl font-semibold text-sm transition-colors cursor-pointer ${activeTab === 'overview' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>Overview</button>
                         <button onClick={() => setActiveTab('planner')} className={`w-full text-left px-5 py-3 rounded-xl font-semibold text-sm transition-colors cursor-pointer ${activeTab === 'planner' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>Course Explorer</button>
                         <button onClick={() => setActiveTab('analyser')} className={`w-full text-left px-5 py-3 rounded-xl font-semibold text-sm transition-colors cursor-pointer ${activeTab === 'analyser' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>PDF Analyser</button>
-                        <button onClick={() => onNavigate('profile')} className="w-full text-left px-5 py-3 rounded-xl font-semibold text-sm transition-colors cursor-pointer text-slate-600 hover:bg-slate-50">Profile</button>
                     </nav>
 
-                    <div className="p-6 border-t border-slate-100">
+                    {/* Bottom Actions */}
+                    <div className="p-6 border-t border-slate-100 flex flex-col gap-2">
+                        <button onClick={() => onNavigate('profile')} className="w-full text-left px-5 py-3 rounded-xl font-semibold text-sm transition-colors cursor-pointer text-slate-600 hover:bg-slate-50">Profile</button>
                         <button onClick={handleLogout} className="w-full text-left px-5 py-3 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-xl font-semibold text-sm transition-colors cursor-pointer">Log out</button>
                     </div>
                 </aside>
