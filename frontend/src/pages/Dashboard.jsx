@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import CoursePlanner from '../components/CoursePlanner';
 import PdfAnalyser from '../components/PdfAnalyser';
+import Profile from './Profile';
 
 export default function Dashboard({ onNavigate }) {
     // We immediately grab the username from memory when the component loads
-    const [userName, setUserName] = useState(localStorage.getItem('userName') || 'Student');
+    const user = JSON.parse(localStorage.getItem('user'));
+    const [userName, setUserName] = useState(user?.name || 'Student');
     const [activeTab, setActiveTab] = useState('overview');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -51,7 +53,7 @@ export default function Dashboard({ onNavigate }) {
 
     const handleLogout = () => {
         localStorage.removeItem('isAuthenticated');
-        localStorage.removeItem('userName');
+        localStorage.removeItem('user');
         localStorage.removeItem('userStreak'); 
         onNavigate('landing');
     };
@@ -131,8 +133,7 @@ export default function Dashboard({ onNavigate }) {
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col overflow-hidden">
-
-            {/* GLOBAL FIXED HEADER */}
+             {/* GLOBAL FIXED HEADER */}
             <header className="h-16 w-full bg-white border-b border-slate-200 flex items-center justify-between px-6 fixed top-0 z-30">
                 <div className="flex items-center gap-4">
                     <button
@@ -165,6 +166,7 @@ export default function Dashboard({ onNavigate }) {
                         <button onClick={() => setActiveTab('overview')} className={`w-full text-left px-5 py-3 rounded-xl font-semibold text-sm transition-colors cursor-pointer ${activeTab === 'overview' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>Overview</button>
                         <button onClick={() => setActiveTab('planner')} className={`w-full text-left px-5 py-3 rounded-xl font-semibold text-sm transition-colors cursor-pointer ${activeTab === 'planner' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>Course Explorer</button>
                         <button onClick={() => setActiveTab('analyser')} className={`w-full text-left px-5 py-3 rounded-xl font-semibold text-sm transition-colors cursor-pointer ${activeTab === 'analyser' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}>PDF Analyser</button>
+                        <button onClick={() => onNavigate('profile')} className="w-full text-left px-5 py-3 rounded-xl font-semibold text-sm transition-colors cursor-pointer text-slate-600 hover:bg-slate-50">Profile</button>
                     </nav>
 
                     <div className="p-6 border-t border-slate-100">

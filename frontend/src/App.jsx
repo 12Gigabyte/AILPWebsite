@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-
+import Profile from './pages/Profile';
 export default function App() {
   // STATE: Check localStorage before deciding which page to load first
   const [currentPage, setCurrentPage] = useState(() => {
@@ -15,6 +15,8 @@ export default function App() {
     <div>
       {currentPage === 'landing' && <Landing onNavigate={setCurrentPage} />}
       {currentPage === 'dashboard' && <Dashboard onNavigate={setCurrentPage} />}
+      {currentPage === 'profile' && <Profile onNavigate={setCurrentPage} />}
+  
     </div>
   );
 }
