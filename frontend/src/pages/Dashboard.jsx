@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import CoursePlanner from '../components/CoursePlanner';
 import PdfAnalyser from '../components/PdfAnalyser';
 import Profile from './Profile';
+import Chatbot from '../components/Chatbot'; // Adjust the path if needed
 
 export default function Dashboard({ onNavigate }) {
     // We immediately grab the username from memory when the component loads
@@ -195,6 +196,9 @@ export default function Dashboard({ onNavigate }) {
                     </div>
                 </main>
             </div>
+            {/* Main Content Area above... */}
+
+            <Chatbot setActiveTab={setActiveTab} onNavigate={onNavigate} userName={userName} />
         </div>
     );
 }
