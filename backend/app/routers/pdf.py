@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 import os
 import json
-import google.generativeai as genai
+from google import genai
 import fitz  # <-- Back to PyMuPDF!
 from dotenv import load_dotenv
 from bson import ObjectId
@@ -10,10 +10,7 @@ from app.database import ai_pdfs_collection
 
 # Load the API key
 load_dotenv()
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-
-# Initialize the model
-model = genai.GenerativeModel('gemini-2.5-flash')
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 router = APIRouter(prefix="/api/pdf", tags=["PDF Analyser"])
 
@@ -60,7 +57,10 @@ async def analyze_pdf(file: UploadFile = File(...)):
         """
         
         # 4. Generate and Parse
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+    model='gemini-2.5-flash',
+    contents=prompt
+)
         raw_text = response.text.strip()
         
         if raw_text.startswith("```json"):

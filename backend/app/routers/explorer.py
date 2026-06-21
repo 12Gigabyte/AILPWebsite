@@ -2,17 +2,14 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import os
 import json
-import google.generativeai as genai
+from google import genai
 from dotenv import load_dotenv
 from bson import ObjectId
 from app.database import ai_courses_collection # <-- THE CLOUD BRIDGE
 
 # Load the API key
 load_dotenv()
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-
-# Initialize the model
-model = genai.GenerativeModel('gemini-2.5-flash')
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 router = APIRouter(prefix="/api/course", tags=["Course Planner"])
 
@@ -61,7 +58,10 @@ async def generate_course(request: CourseRequest):
         Return ONLY the raw JSON object.
         """
 
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+    model='gemini-2.5-flash',
+    contents=prompt
+)
         
         raw_text = response.text.strip()
         if raw_text.startswith("```json"):
