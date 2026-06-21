@@ -50,7 +50,7 @@ export default function Login({ onNavigate, onClose }) {
                     // 🛡️ SMART EXTRACTION: Hunt down 'profileData' first!
                     const backendUser = data.profileData || data.user || data || {};
 
-                    const actualName = typeof backendUser === 'string' ? backendUser : (backendUser.name || "Student");
+                    const actualName = typeof backendUser === 'string' ? backendUser : (backendUser.name || email.split('@')[0]);
                     const actualInst = backendUser.institution || data.institution || "Not specified";
                     const actualDob = backendUser.dob || data.dob || "Not specified";
                     const actualAge = backendUser.age || data.age || "N/A";

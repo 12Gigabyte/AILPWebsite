@@ -10,8 +10,8 @@ export default function PdfAnalyser() {
     const [savedAnalyses, setSavedAnalyses] = useState([]);
     const [activeAnalysis, setActiveAnalysis] = useState(null);
 
-    // Grab the logged-in user!
-    const userName = localStorage.getItem('userName') || 'Student';
+    const userObj = JSON.parse(localStorage.getItem('user') || '{}');
+    const userName = userObj.name || 'Student';
 
     const [flippedCards, setFlippedCards] = useState({});
     const [quizAnswers, setQuizAnswers] = useState({});

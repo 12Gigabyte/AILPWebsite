@@ -9,7 +9,8 @@ export default function CoursePlanner() {
     const [activeCourse, setActiveCourse] = useState(null);
 
     // We grab the logged-in user to fetch their specific data!
-    const userName = localStorage.getItem('userName') || 'Student';
+    const userObj = JSON.parse(localStorage.getItem('user') || '{}');
+    const userName = userObj.name || 'Student';
 
     const [quizAnswers, setQuizAnswers] = useState({});
     const [showResults, setShowResults] = useState(false);
